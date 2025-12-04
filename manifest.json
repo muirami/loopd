@@ -1,0 +1,21 @@
+{
+  "short_name": "Loopd",
+  "name": "Loopd: Life in Sync",
+  "icons": [
+    {
+      "src": "https://placehold.co/192x192/E88D72/FFFFFF.png?text=L&font=nunito",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://placehold.co/512x512/E88D72/FFFFFF.png?text=L&font=nunito",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#E88D72",
+  "background_color": "#FAF9F6",
+  "orientation": "portrait"
+}
