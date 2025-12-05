@@ -39,10 +39,11 @@ export const useAudioEngine = () => {
   }, []);
 
   const startAudioContext = async () => {
+    // Cross-browser AudioContext support
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return null;
+
     if (!audioContext) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return null;
-      
       const ctx = new AudioContextClass();
       if (ctx.state === 'suspended') {
         await ctx.resume();
