@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Track } from '../types';
 
 export const useAudioEngine = () => {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  // Ref to track audio context for cleanup without dependency cycles
+  const audioContextRef = useRef<AudioContext | null>(null);
+  
   const [tracks, setTracks] = useState<Track[]>([
     { id: '1', name: 'Drums', color: 'bg-rose-500', audioBuffer: null, isMuted: false, isSolo: false, volume: 0.8, isRecording: false, hasRecordedData: false },
     { id: '2', name: 'Bass', color: 'bg-violet-500', audioBuffer: null, isMuted: false, isSolo: false, volume: 0.8, isRecording: false, hasRecordedData: false },
@@ -11,7 +14,7 @@ export const useAudioEngine = () => {
   ]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [loopDuration, setLoopDuration] = useState(0); // In seconds. 0 means dynamic/first track sets it.
+  const [loopDuration, setLoopDuration] = useState(0); 
 
   // Refs for audio scheduling
   const nextStartTimeRef = useRef<number>(0);
@@ -29,8 +32,9 @@ export const useAudioEngine = () => {
   useEffect(() => {
     // Cleanup on unmount
     return () => {
-      if (audioContext && audioContext.state !== 'closed') {
-        audioContext.close();
+      // Use ref to access current context in cleanup
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
       }
       if (requestAnimFrameRef.current) {
         cancelAnimationFrame(requestAnimFrameRef.current);
@@ -39,15 +43,17 @@ export const useAudioEngine = () => {
   }, []);
 
   const startAudioContext = async () => {
-    // Cross-browser AudioContext support (Safari uses webkitAudioContext)
+    // Cross-browser AudioContext support
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) {
       console.error("AudioContext not supported in this browser");
       return null;
     }
 
-    if (!audioContext) {
+    if (!audioContextRef.current) {
       const ctx = new AudioContextClass();
+      audioContextRef.current = ctx; // Sync ref
+      
       if (ctx.state === 'suspended') {
         await ctx.resume();
       }
@@ -56,20 +62,20 @@ export const useAudioEngine = () => {
       master.connect(ctx.destination);
       masterGainRef.current = master;
       
-      setAudioContext(ctx);
+      setAudioContext(ctx); // Sync state
       return ctx;
-    } else if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-      return audioContext;
+    } else if (audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume();
+      return audioContextRef.current;
     }
-    return audioContext;
+    return audioContextRef.current;
   };
 
   const updateTrackVolume = (id: string, val: number) => {
     setTracks(prev => prev.map(t => t.id === id ? { ...t, volume: val } : t));
     const gainNode = gainNodesRef.current.get(id);
     if (gainNode) {
-      gainNode.gain.setValueAtTime(val, audioContext?.currentTime || 0);
+      gainNode.gain.setValueAtTime(val, audioContextRef.current?.currentTime || 0);
     }
   };
 
@@ -84,13 +90,11 @@ export const useAudioEngine = () => {
   const toggleSolo = (id: string) => {
     setTracks(prev => {
       const willSolo = !prev.find(t => t.id === id)?.isSolo;
-      
       const newTracks = prev.map(t => {
          if (t.id === id) return { ...t, isSolo: willSolo };
          if (willSolo) return { ...t, isSolo: false }; 
          return t;
       });
-      
       updateGainNodes(newTracks);
       return newTracks;
     });
@@ -98,7 +102,6 @@ export const useAudioEngine = () => {
   
   const updateGainNodes = (currentTracks: Track[]) => {
     const isAnySolo = currentTracks.some(t => t.isSolo);
-    
     currentTracks.forEach(track => {
       const gainNode = gainNodesRef.current.get(track.id);
       if (gainNode) {
@@ -106,8 +109,11 @@ export const useAudioEngine = () => {
         if (track.isMuted) targetGain = 0;
         if (isAnySolo && !track.isSolo) targetGain = 0;
         
-        // Smooth transition
-        gainNode.gain.setTargetAtTime(targetGain, audioContext?.currentTime || 0, 0.05);
+        // Smooth transition to prevent clicks
+        const ctx = audioContextRef.current;
+        if (ctx) {
+             gainNode.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.05);
+        }
       }
     });
   };
@@ -129,20 +135,18 @@ export const useAudioEngine = () => {
          duration = Math.max(...recordedTracks.map(t => t.audioBuffer!.duration));
          setLoopDuration(duration);
        } else {
-         duration = 2.0; // Default 2 seconds dummy loop if nothing recorded
+         duration = 2.0; // Default dummy loop
        }
     }
 
     const now = ctx.currentTime;
-    nextStartTimeRef.current = now + 0.1; // Schedule slightly in future
+    nextStartTimeRef.current = now + 0.1; 
     
     scheduleLoop(nextStartTimeRef.current, duration);
     setIsPlaying(true);
     
-    // UI Loop
     const tick = () => {
       if (!ctx) return;
-      // Calculate progress 0-1 based on loop duration
       const elapsed = duration > 0 ? (ctx.currentTime - nextStartTimeRef.current) % duration : 0;
       setCurrentTime(elapsed >= 0 ? elapsed : 0);
       
@@ -154,18 +158,17 @@ export const useAudioEngine = () => {
   };
 
   const scheduleLoop = (startTime: number, duration: number) => {
-    if (!audioContext) return;
+    const ctx = audioContextRef.current;
+    if (!ctx) return;
     
     tracks.forEach(track => {
       if (track.audioBuffer) {
-        const source = audioContext.createBufferSource();
+        const source = ctx.createBufferSource();
         source.buffer = track.audioBuffer;
         source.loop = true; 
         
-        // Connect
-        const gain = audioContext.createGain();
+        const gain = ctx.createGain();
         gain.gain.value = track.isMuted ? 0 : track.volume;
-        // Solo check handled in updateGainNodes primarily, but init here too
         const isAnySolo = tracks.some(t => t.isSolo);
         if (isAnySolo && !track.isSolo) gain.gain.value = 0;
 
@@ -199,12 +202,11 @@ export const useAudioEngine = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
       
-      // Better browser compatibility check for MIME types
       let mimeType = 'audio/webm';
       if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
         mimeType = 'audio/webm;codecs=opus';
       } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4'; // Safari support
+        mimeType = 'audio/mp4'; 
       }
       
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
@@ -223,7 +225,7 @@ export const useAudioEngine = () => {
         const arrayBuffer = await blob.arrayBuffer();
         const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
         
-        // If this is the first track, set loop duration
+        // Critical: Update loop duration if it's the first track
         if (loopDuration === 0) {
             setLoopDuration(audioBuffer.duration);
         }
@@ -241,15 +243,13 @@ export const useAudioEngine = () => {
         }));
         
         activeRecordingTrackIdRef.current = null;
-        
-        // Stop stream
         stream.getTracks().forEach(track => track.stop());
       };
 
       mediaRecorder.start();
       
       if (!isPlaying && loopDuration > 0) {
-          play(); // Auto play backing tracks if they exist
+          play(); 
       }
 
     } catch (err) {
@@ -265,19 +265,23 @@ export const useAudioEngine = () => {
   };
   
   const clearTrack = (trackId: string) => {
-      setTracks(prev => prev.map(t => t.id === trackId ? { ...t, audioBuffer: null, hasRecordedData: false } : t));
-      // Stop playing node if exists
+      setTracks(prev => {
+          const nextTracks = prev.map(t => t.id === trackId ? { ...t, audioBuffer: null, hasRecordedData: false } : t);
+          
+          // Check if any tracks remain with data
+          const hasData = nextTracks.some(t => t.hasRecordedData);
+          if (!hasData) {
+              setLoopDuration(0);
+              // We must stop playback if no tracks remain to prevent ghost loops
+              stop(); 
+          }
+          return nextTracks;
+      });
+
       const node = sourceNodesRef.current.get(trackId);
       if (node) {
           try { node.stop(); } catch(e){}
           sourceNodesRef.current.delete(trackId);
-      }
-      
-      // If all cleared, reset loop duration
-      const remaining = tracks.filter(t => t.id !== trackId && t.hasRecordedData);
-      if (remaining.length === 0) {
-          setLoopDuration(0);
-          stop();
       }
   };
 
