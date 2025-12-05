@@ -33,7 +33,10 @@ export const generateMusicalInspiration = async (): Promise<Inspiration | null> 
     const text = response.text;
     if (!text) return null;
     
-    return JSON.parse(text) as Inspiration;
+    // Sanitize the text to remove any markdown code block fencing that Gemini might add
+    const jsonString = text.replace(/```json|```/g, '').trim();
+
+    return JSON.parse(jsonString) as Inspiration;
   } catch (error) {
     console.error("Failed to generate inspiration:", error);
     return null;
