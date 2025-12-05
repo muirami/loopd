@@ -33,8 +33,16 @@ export const generateMusicalInspiration = async (): Promise<Inspiration | null> 
     const text = response.text;
     if (!text) return null;
     
-    // Sanitize the text to remove any markdown code block fencing that Gemini might add
-    const jsonString = text.replace(/```json|```/g, '').trim();
+    // Robustly extract JSON: look for the first '{' and last '}'
+    const startIndex = text.indexOf('{');
+    const endIndex = text.lastIndexOf('}');
+    
+    if (startIndex === -1 || endIndex === -1) {
+        console.error("No JSON found in response");
+        return null;
+    }
+    
+    const jsonString = text.substring(startIndex, endIndex + 1);
 
     return JSON.parse(jsonString) as Inspiration;
   } catch (error) {
