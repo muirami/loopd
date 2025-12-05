@@ -40,8 +40,13 @@ export const useAudioEngine = () => {
 
   const startAudioContext = async () => {
     if (!audioContext) {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      await ctx.resume();
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return null;
+      
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
       
       const master = ctx.createGain();
       master.connect(ctx.destination);
