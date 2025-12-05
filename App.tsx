@@ -24,9 +24,9 @@ const App: React.FC = () => {
   const [hasInteracted, setHasInteracted] = useState(false);
 
   // Initial interaction handler to unlock AudioContext
-  const handleInitialInteraction = () => {
+  const handleInitialInteraction = async () => {
     if (!hasInteracted) {
-        startAudioContext();
+        await startAudioContext();
         setHasInteracted(true);
     }
   };
@@ -35,10 +35,7 @@ const App: React.FC = () => {
   const progressPercent = loopDuration > 0 ? (currentTime / loopDuration) * 100 : 0;
 
   return (
-    <div 
-        className="min-h-screen bg-slate-900 text-slate-200 p-4 md:p-8"
-        onClick={handleInitialInteraction}
-    >
+    <div className="min-h-screen bg-slate-900 text-slate-200 p-4 md:p-8">
       <div className="mx-auto max-w-5xl space-y-8">
         
         {/* Header */}
@@ -137,24 +134,30 @@ const App: React.FC = () => {
                         </li>
                     </ul>
                 </div>
-
-                {!hasInteracted && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
-                        <div className="max-w-md rounded-2xl bg-slate-900 p-8 text-center shadow-2xl border border-slate-800">
-                            <h2 className="mb-2 text-2xl font-bold text-white">Welcome to Loopd</h2>
-                            <p className="mb-6 text-slate-400">Click anywhere to enable the audio engine and start creating.</p>
-                            <button 
-                                onClick={handleInitialInteraction}
-                                className="w-full rounded-xl bg-indigo-600 py-3 font-bold text-white transition-all hover:bg-indigo-500 hover:scale-105 active:scale-95 animate-pulse"
-                            >
-                                Start Creating
-                            </button>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
       </div>
+      
+      {!hasInteracted && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md transition-opacity duration-500">
+            <div className="max-w-md w-full mx-4 rounded-3xl bg-slate-900 p-8 text-center shadow-2xl border border-slate-800">
+                <div className="mb-6 flex justify-center">
+                    <div className="h-20 w-20 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                        <Disc size={40} className="text-white" />
+                    </div>
+                </div>
+                <h2 className="mb-2 text-3xl font-black text-white">Loopd</h2>
+                <p className="mb-8 text-slate-400 text-lg">Your AI-powered production station.</p>
+                <button 
+                    onClick={handleInitialInteraction}
+                    className="w-full rounded-2xl bg-indigo-600 py-4 text-lg font-bold text-white transition-all hover:bg-indigo-500 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-indigo-900/50"
+                >
+                    Start Creating
+                </button>
+                <p className="mt-4 text-xs text-slate-600">Clicking start enables the audio engine.</p>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
