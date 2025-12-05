@@ -5,10 +5,12 @@ import { ChildActivity, DayOfWeek } from "../types";
 // Initialize Gemini Client
 // Using VITE_API_KEY from environment variables
 const apiKey = import.meta.env.VITE_API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey });
+
+// Only initialize if key exists to prevent crash on load
+const ai = apiKey ? new GoogleGenAI({ apiKey: apiKey }) : null;
 
 export const parseActivityFromText = async (text: string): Promise<ChildActivity | null> => {
-  if (!apiKey) {
+  if (!apiKey || !ai) {
     console.error("API Key missing. VITE_API_KEY is required.");
     return null;
   }
@@ -49,7 +51,7 @@ export const parseActivityFromText = async (text: string): Promise<ChildActivity
 };
 
 export const suggestHangoutMessage = async (organiserName: string, windowTitle: string, location: string): Promise<string> => {
-  if (!apiKey) return `Hey! Do you want to join for ${windowTitle} at ${location}?`;
+  if (!apiKey || !ai) return `Hey! Do you want to join for ${windowTitle} at ${location}?`;
 
   try {
     const response = await ai.models.generateContent({
