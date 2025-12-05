@@ -39,9 +39,12 @@ export const useAudioEngine = () => {
   }, []);
 
   const startAudioContext = async () => {
-    // Cross-browser AudioContext support
+    // Cross-browser AudioContext support (Safari uses webkitAudioContext)
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return null;
+    if (!AudioContextClass) {
+      console.error("AudioContext not supported in this browser");
+      return null;
+    }
 
     if (!audioContext) {
       const ctx = new AudioContextClass();
