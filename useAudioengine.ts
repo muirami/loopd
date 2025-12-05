@@ -190,11 +190,12 @@ export const useAudioEngine = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaStreamRef.current = stream;
       
+      // Better browser compatibility check for MIME types
       let mimeType = 'audio/webm';
       if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
         mimeType = 'audio/webm;codecs=opus';
       } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4';
+        mimeType = 'audio/mp4'; // Safari support
       }
       
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
