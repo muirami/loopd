@@ -4,8 +4,7 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // Vital for Vercel: tells Vite the project root is the current folder
-  root: process.cwd(), 
+  // Removed 'root' property to allow auto-detection
   base: './',
   server: {
     port: 3000,
