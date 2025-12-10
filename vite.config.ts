@@ -5,12 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   define: {
-    // Safely expose API_KEY; fallback to empty string to prevent build crashes if undefined
+    // Safely expose API_KEY; fallback to empty string to prevent build crashes
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
   },
-  build: {
-    rollupOptions: {
-      input: 'index.html',
-    },
-  },
+  // Removed explicit rollupOptions.input to let Vite automatically find index.html
 });
